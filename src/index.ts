@@ -7,7 +7,7 @@ import { findSupportedMediaFiles } from './helpers/find-supported-media-files';
 import { readPhotoTakenTimeFromGoogleJson } from './helpers/read-photo-taken-time-from-google-json';
 import { updateExifMetadata } from './helpers/update-exif-metadata';
 import { updateFileModificationDate } from './helpers/update-file-modification-date';
-import { Directories } from './models/directories'
+import { Directories } from './models/directories';
 
 const { readdir, mkdir, copyFile } = fspromises;
 
@@ -15,8 +15,8 @@ class GooglePhotosExif extends Command {
   static description = `Takes in a directory path for an extracted Google Photos Takeout. Extracts all photo/video files (based on the conigured list of file extensions) and places them into an output directory. All files will have their modified timestamp set to match the timestamp specified in Google's JSON metadata files (where present). In addition, for file types that support EXIF, the EXIF "DateTimeOriginal" field will be set to the timestamp from Google's JSON metadata, if the field is not already set in the EXIF metadata.`;
 
   static flags = {
-    version: flags.version({char: 'v'}),
-    help: flags.help({char: 'h'}),
+    version: flags.version({ char: 'v' }),
+    help: flags.help({ char: 'h' }),
     inputDir: flags.string({
       char: 'i',
       description: 'Directory containing the extracted contents of Google Photos Takeout zip file',
@@ -32,12 +32,12 @@ class GooglePhotosExif extends Command {
       description: 'Directory for any files that have bad EXIF data - including the matching metadata files',
       required: true,
     }),
-  }
+  };
 
-  static args: Parser.args.Input  = []
+  static args: Parser.args.Input = [];
 
   async run() {
-    const { args, flags} = this.parse(GooglePhotosExif);
+    const { args, flags } = this.parse(GooglePhotosExif);
     const { inputDir, outputDir, errorDir } = flags;
 
     try {
@@ -74,8 +74,14 @@ class GooglePhotosExif extends Command {
       throw new Error('You must specify an error directory using the --errorDir flag');
     }
 
-    await this.checkDirIsEmptyAndCreateDirIfNotFound(directories.output, 'If the output directory already exists, it must be empty');
-    await this.checkDirIsEmptyAndCreateDirIfNotFound(directories.error, 'If the error directory already exists, it must be empty');
+    await this.checkDirIsEmptyAndCreateDirIfNotFound(
+      directories.output,
+      'If the output directory already exists, it must be empty',
+    );
+    await this.checkDirIsEmptyAndCreateDirIfNotFound(
+      directories.error,
+      'If the error directory already exists, it must be empty',
+    );
   }
 
   private async checkDirIsEmptyAndCreateDirIfNotFound(directoryPath: string, messageIfNotEmpty: string): Promise<void> {
@@ -96,7 +102,7 @@ class GooglePhotosExif extends Command {
   private async processMediaFiles(directories: Directories): Promise<void> {
     // Find media files
     const supportedMediaFileExtensions = CONFIG.supportedMediaFileTypes.map(fileType => fileType.extension);
-    this.log(`--- Finding supported media files (${supportedMediaFileExtensions.join(', ')}) ---`)
+    this.log(`--- Finding supported media files (${supportedMediaFileExtensions.join(', ')}) ---`);
     const mediaFiles = await findSupportedMediaFiles(directories.input, directories.output);
 
     // Count how many files were found for each supported file extension
@@ -123,18 +129,17 @@ class GooglePhotosExif extends Command {
       // Process the output file, setting the modified timestamp and/or EXIF metadata where necessary
       const photoTimeTaken = await readPhotoTakenTimeFromGoogleJson(mediaFile);
 
-      if (photoTimeTaken) {
-        if (mediaFile.supportsExif) {
-          const hasExifDate = await doesFileHaveExifDate(mediaFile.mediaFilePath);
-          if (!hasExifDate) {
-            await updateExifMetadata(mediaFile, photoTimeTaken, directories.error);
-            fileNamesWithEditedExif.push(mediaFile.outputFileName);
-            this.log(`Wrote "DateTimeOriginal" EXIF metadata to: ${mediaFile.outputFileName}`);
-          }
-        }
+      if (!photoTimeTaken) { continue; }
 
-        await updateFileModificationDate(mediaFile.outputFilePath, photoTimeTaken);
+      if (mediaFile.supportsExif) {
+        const hasExifDate = await doesFileHaveExifDate(mediaFile.mediaFilePath);
+        if (!hasExifDate) {
+          await updateExifMetadata(mediaFile, photoTimeTaken, directories.error);
+          fileNamesWithEditedExif.push(mediaFile.outputFileName);
+          this.log(`Wrote "DateTimeOriginal" EXIF metadata to: ${mediaFile.outputFileName}`);
+        }
       }
+      await updateFileModificationDate(mediaFile.outputFilePath, photoTimeTaken);
     }
 
     // Log a summary
@@ -142,7 +147,7 @@ class GooglePhotosExif extends Command {
     mediaFileCountsByExtension.forEach((count, extension) => {
       this.log(`${count} files with extension ${extension}`);
     });
-    this.log(`--- The file modified timestamp has been updated on all media files ---`)
+    this.log(`--- The file modified timestamp has been updated on all media files ---`);
     if (fileNamesWithEditedExif.length > 0) {
       this.log(`--- Found ${fileNamesWithEditedExif.length} files which support EXIF, but had no DateTimeOriginal field. For each of the following files, the DateTimeOriginalField has been updated using the date found in the JSON metadata: ---`);
       fileNamesWithEditedExif.forEach(fileNameWithEditedExif => this.log(fileNameWithEditedExif));

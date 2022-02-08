@@ -1,7 +1,7 @@
-import { existsSync } from "fs"
-import { basename, dirname, extname, resolve } from 'path'
+import { existsSync } from 'fs';
+import { basename, dirname, extname, resolve } from 'path';
 
-export function getCompanionJsonPathForMediaFile(mediaFilePath: string): string|null {
+export function getCompanionJsonPathForMediaFile(mediaFilePath: string): string | null {
   const directoryPath = dirname(mediaFilePath);
   const mediaFileExtension = extname(mediaFilePath);
   let mediaFileNameWithoutExtension = basename(mediaFilePath, mediaFileExtension);
@@ -18,6 +18,12 @@ export function getCompanionJsonPathForMediaFile(mediaFilePath: string): string|
     `${mediaFileNameWithoutExtension}.json`,
     `${mediaFileNameWithoutExtension}${mediaFileExtension}.json`,
   ];
+
+  // Edge case where google creates a thumbnail as a JPG for an MP4 and saves it in a json sidecar
+  if (mediaFileExtension === '.MP4' || mediaFileExtension === '.mp4') {
+    potentialJsonFileNames.push(`${mediaFileNameWithoutExtension}.JPG.json`);
+    potentialJsonFileNames.push(`${mediaFileNameWithoutExtension}.jpg.json`);
+  }
 
   // Another edge case which seems to be quite inconsistent occurs when we have media files containing a number suffix for example "foo(1).jpg"
   // In this case, we don't get "foo(1).json" nor "foo(1).jpg.json". Instead, we strangely get "foo.jpg(1).json".
@@ -42,7 +48,6 @@ export function getCompanionJsonPathForMediaFile(mediaFilePath: string): string|
     // We need to remove that extra char at the end
     potentialJsonFileNames.push(`${mediaFileNameWithoutExtension.slice(0, -1)}.json`);
   }
-
   // Now look to see if we have a JSON file in the same directory as the image for any of the potential JSON file names
   // that we identified earlier
   for (const potentialJsonFileName of potentialJsonFileNames) {
